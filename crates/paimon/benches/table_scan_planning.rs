@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use arrow_array::{Int32Array, RecordBatch, StringArray};
 use arrow_schema::{DataType as ArrowDataType, Field as ArrowField, Schema as ArrowSchema};
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use paimon::catalog::Identifier;
 use paimon::io::{FileIO, FileIOBuilder};
 use paimon::spec::{
@@ -31,22 +31,37 @@ use tokio::runtime::Runtime;
 
 fn bench_table_scan_planning(c: &mut Criterion) {
     let runtime = Runtime::new().expect("benchmark runtime");
-    let append_full = runtime.block_on(setup_append_table("memory:/bench_scan_append_full", 48, 32));
-    let append_partition =
-        runtime.block_on(setup_append_table("memory:/bench_scan_append_partition", 48, 32));
+    let append_full =
+        runtime.block_on(setup_append_table("memory:/bench_scan_append_full", 48, 32));
+    let append_partition = runtime.block_on(setup_append_table(
+        "memory:/bench_scan_append_partition",
+        48,
+        32,
+    ));
     let pk_bucket = runtime.block_on(setup_pk_table("memory:/bench_scan_pk_bucket", 48, 32));
-    let append_limit =
-        runtime.block_on(setup_append_table("memory:/bench_scan_append_limit", 48, 32));
+    let append_limit = runtime.block_on(setup_append_table(
+        "memory:/bench_scan_append_limit",
+        48,
+        32,
+    ));
 
     let mut group = c.benchmark_group("table_scan_planning");
 
     emit_trace(&runtime, "append_full_scan_many_files", || async {
-        append_full.new_read_builder().new_scan().plan_with_trace().await
+        append_full
+            .new_read_builder()
+            .new_scan()
+            .plan_with_trace()
+            .await
     });
     group.bench_function(BenchmarkId::new("append_full_scan_many_files", 48), |b| {
         b.iter(|| {
             runtime.block_on(async {
-                let result = append_full.new_read_builder().new_scan().plan_with_trace().await;
+                let result = append_full
+                    .new_read_builder()
+                    .new_scan()
+                    .plan_with_trace()
+                    .await;
                 black_box(result.expect("append full scan planning"))
             })
         });
@@ -133,7 +148,9 @@ async fn setup_dirs(file_io: &FileIO, table_path: &str) {
 }
 
 async fn setup_append_table(table_path: &str, commits: usize, rows_per_commit: usize) -> Table {
-    let file_io = FileIOBuilder::new("memory").build().expect("memory file io");
+    let file_io = FileIOBuilder::new("memory")
+        .build()
+        .expect("memory file io");
     setup_dirs(&file_io, table_path).await;
     let schema = Schema::builder()
         .column("id", DataType::Int(IntType::new()))
@@ -157,7 +174,9 @@ async fn setup_append_table(table_path: &str, commits: usize, rows_per_commit: u
 }
 
 async fn setup_pk_table(table_path: &str, commits: usize, rows_per_commit: usize) -> Table {
-    let file_io = FileIOBuilder::new("memory").build().expect("memory file io");
+    let file_io = FileIOBuilder::new("memory")
+        .build()
+        .expect("memory file io");
     setup_dirs(&file_io, table_path).await;
     let schema = Schema::builder()
         .column("id", DataType::Int(IntType::new()))
@@ -218,7 +237,10 @@ fn pk_batch(commit_idx: usize, rows: usize) -> RecordBatch {
             ArrowField::new("id", ArrowDataType::Int32, false),
             ArrowField::new("value", ArrowDataType::Int32, false),
         ])),
-        vec![Arc::new(Int32Array::from(ids)), Arc::new(Int32Array::from(values))],
+        vec![
+            Arc::new(Int32Array::from(ids)),
+            Arc::new(Int32Array::from(values)),
+        ],
     )
     .expect("pk batch")
 }
