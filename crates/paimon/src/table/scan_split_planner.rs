@@ -48,7 +48,6 @@ pub(super) struct SplitPlanningInput<'a> {
     pub(super) row_ranges: Option<Vec<RowRange>>,
     pub(super) projected_read_field_ids: Option<&'a HashSet<i32>>,
     pub(super) limit: Option<usize>,
-    pub(super) scan_all_files: bool,
 }
 
 pub(super) async fn plan_splits(
@@ -79,7 +78,6 @@ impl SplitPlanner<'_, '_> {
         let row_ranges = self.input.row_ranges;
         let projected_read_field_ids = self.input.projected_read_field_ids;
         let limit = self.input.limit;
-        let _scan_all_files = self.input.scan_all_files;
         let mut trace = self.trace;
 
         let file_io = table.file_io();

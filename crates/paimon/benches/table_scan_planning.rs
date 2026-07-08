@@ -29,20 +29,30 @@ use paimon::spec::{
 use paimon::table::Table;
 use tokio::runtime::Runtime;
 
+const BENCH_COMMIT_COUNT: usize = 48;
+const ROWS_PER_COMMIT: usize = 32;
+
 fn bench_table_scan_planning(c: &mut Criterion) {
     let runtime = Runtime::new().expect("benchmark runtime");
-    let append_full =
-        runtime.block_on(setup_append_table("memory:/bench_scan_append_full", 48, 32));
+    let append_full = runtime.block_on(setup_append_table(
+        "memory:/bench_scan_append_full",
+        BENCH_COMMIT_COUNT,
+        ROWS_PER_COMMIT,
+    ));
     let append_partition = runtime.block_on(setup_append_table(
         "memory:/bench_scan_append_partition",
-        48,
-        32,
+        BENCH_COMMIT_COUNT,
+        ROWS_PER_COMMIT,
     ));
-    let pk_bucket = runtime.block_on(setup_pk_table("memory:/bench_scan_pk_bucket", 48, 32));
+    let pk_bucket = runtime.block_on(setup_pk_table(
+        "memory:/bench_scan_pk_bucket",
+        BENCH_COMMIT_COUNT,
+        ROWS_PER_COMMIT,
+    ));
     let append_limit = runtime.block_on(setup_append_table(
         "memory:/bench_scan_append_limit",
-        48,
-        32,
+        BENCH_COMMIT_COUNT,
+        ROWS_PER_COMMIT,
     ));
 
     let mut group = c.benchmark_group("table_scan_planning");
@@ -54,7 +64,9 @@ fn bench_table_scan_planning(c: &mut Criterion) {
             .plan_with_trace()
             .await
     });
-    group.bench_function(BenchmarkId::new("append_full_scan_many_files", 48), |b| {
+    group.bench_function(
+        BenchmarkId::new("append_full_scan_many_files", BENCH_COMMIT_COUNT),
+        |b| {
         b.iter(|| {
             runtime.block_on(async {
                 let result = append_full
@@ -65,7 +77,8 @@ fn bench_table_scan_planning(c: &mut Criterion) {
                 black_box(result.expect("append full scan planning"))
             })
         });
-    });
+        },
+    );
 
     let append_partition_filter = partition_filter(&append_partition, "2024-01-03");
     emit_trace(&runtime, "append_partition_pruned", || async {
@@ -73,7 +86,9 @@ fn bench_table_scan_planning(c: &mut Criterion) {
         builder.with_filter(append_partition_filter.clone());
         builder.new_scan().plan_with_trace().await
     });
-    group.bench_function(BenchmarkId::new("append_partition_pruned", 48), |b| {
+    group.bench_function(
+        BenchmarkId::new("append_partition_pruned", BENCH_COMMIT_COUNT),
+        |b| {
         b.iter(|| {
             let filter = append_partition_filter.clone();
             runtime.block_on(async {
@@ -83,7 +98,8 @@ fn bench_table_scan_planning(c: &mut Criterion) {
                 black_box(result.expect("append partition-pruned planning"))
             })
         });
-    });
+        },
+    );
 
     let pk_bucket_filter = id_filter(&pk_bucket, 7);
     emit_trace(&runtime, "pk_bucket_pruned", || async {
@@ -91,7 +107,7 @@ fn bench_table_scan_planning(c: &mut Criterion) {
         builder.with_filter(pk_bucket_filter.clone());
         builder.new_scan().plan_with_trace().await
     });
-    group.bench_function(BenchmarkId::new("pk_bucket_pruned", 48), |b| {
+    group.bench_function(BenchmarkId::new("pk_bucket_pruned", BENCH_COMMIT_COUNT), |b| {
         b.iter(|| {
             let filter = pk_bucket_filter.clone();
             runtime.block_on(async {
@@ -108,7 +124,7 @@ fn bench_table_scan_planning(c: &mut Criterion) {
         builder.with_limit(1);
         builder.new_scan().plan_with_trace().await
     });
-    group.bench_function(BenchmarkId::new("append_limit_pushdown", 48), |b| {
+    group.bench_function(BenchmarkId::new("append_limit_pushdown", BENCH_COMMIT_COUNT), |b| {
         b.iter(|| {
             runtime.block_on(async {
                 let mut builder = append_limit.new_read_builder();
@@ -133,7 +149,7 @@ where
     let (_, trace) = runtime
         .block_on(plan())
         .expect("benchmark scan trace planning");
-    eprintln!("scan_trace/{case_name}/48: {trace}");
+    eprintln!("scan_trace/{case_name}/{BENCH_COMMIT_COUNT}: {trace}");
 }
 
 async fn setup_dirs(file_io: &FileIO, table_path: &str) {

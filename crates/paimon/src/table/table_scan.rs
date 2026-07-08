@@ -248,7 +248,6 @@ impl<'a> TableScan<'a> {
                 row_ranges: self.row_ranges.clone(),
                 projected_read_field_ids: data_evolution_read_field_ids,
                 limit: self.limit,
-                scan_all_files: self.scan_all_files,
             },
             trace,
         )
