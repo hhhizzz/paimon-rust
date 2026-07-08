@@ -55,6 +55,7 @@ pub mod referenced_files;
 pub(crate) mod rest_env;
 pub(crate) mod row_id_predicate;
 mod scan_manifest_planner;
+mod scan_split_planner;
 mod scan_trace;
 pub(crate) mod schema_manager;
 pub(crate) mod snapshot_commit;
